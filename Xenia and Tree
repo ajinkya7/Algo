@@ -1,0 +1,213 @@
+    #include <bits/stdc++.h>
+    using namespace std;
+    typedef long long int ll;
+    typedef unsigned long long int ull;
+    typedef long double ld;
+     
+    typedef map<ll,ll> M;
+    #define MEM(a, b) memset(a, (b), sizeof(a)) //fill value
+    #define FI(i, j, k, in) for (int i=j ; i<k ; i+=in) //from j till k increment by in FOR INT
+    #define fl(i, j, k, in) for (long long int i=j ; i<k ; i+=in) //from j till k increment by in FOR LL
+    #define fll(i, j, k) for (long long int i=j ; i<k ; i+=1) //from j till k increment by in FOR LL
+    #define FULL(i, j, k, in) for (unsigned long long int i=j ; i<k ; i+=in) //from j till k increment by in FOR ULL
+    #define N 100005
+    const ll INF=pow(10,14);
+     
+    ll n;
+    M adj[N];
+    //lca for finding distance between two nodes in actual tree
+    ll dpTable[N][23];
+    ll level[N];
+    //-------preprocessing stage-------------------
+    void dfs1(ll curr,ll par,ll depth=0)
+    {
+    	dpTable[curr][0]=par;
+    	level[curr]=depth;
+    	for(auto it=adj[curr].begin();it!=adj[curr].end();it++)
+    	{
+    		if(it->first!=par)
+    		dfs1(it->first,curr,depth+1);
+    	}
+    }
+     
+    void preprocess()
+    {
+    	dfs1(0,-1);
+    	ll i,j;
+    	fll(i,1,22)
+    	{
+    		fll(j,0,n)
+    		{
+    			if(dpTable[j][i-1]!=-1)
+    			dpTable[j][i]=dpTable[dpTable[j][i-1]][i-1];
+    		}
+    	}
+    }
+     
+    ll findLCA(ll u,ll v)
+    {
+    	if(u==v)
+    	return u;
+    	if(level[u]<level[v])
+    	swap(u,v);
+    	ll diff=level[u]-level[v];
+    	ll i;
+    	fll(i,0,22)
+    	{
+    		if(diff&(1<<i))
+    		u=dpTable[u][i];
+    	}
+    	if(u==v)
+    	return u;
+    	for(ll i=21;i>=0;i--)
+    	{
+    		if(dpTable[u][i]!=dpTable[v][i])
+    		{
+    			u=dpTable[u][i];
+    			v=dpTable[v][i];
+    		}
+    	}
+    	return dpTable[u][0];
+    }
+     
+    ll findDist(ll u,ll v)
+    {
+    	return level[u]+level[v]-2*level[findLCA(u,v)];
+    }
+     
+    //-------------------decomposition part-------------------------
+     
+    ll subTree[N];
+    ll nn; //number of nodes in tree(note that it may not be equal to n,as it is of decomposed tree)
+    //finding subtree sizes of the given tree
+     
+    void dfs2(ll curr,ll par)
+    {
+    	nn++;
+    	subTree[curr]=1;
+    	for(auto it=adj[curr].begin();it!=adj[curr].end();it++)
+    	{
+    		if(it->first!=par)
+    		{
+    		dfs2(it->first,curr);
+    		subTree[curr]+=subTree[it->first];
+    		}
+    	}
+    }
+     
+    //finding centroid of the given tree
+     
+    ll dfs3(ll curr,ll par)
+    {
+    	for(auto it=adj[curr].begin();it!=adj[curr].end();it++)
+    	{
+    		//could try removing first condition
+    		if(it->first!=par && subTree[it->first]>nn/2)
+    		return dfs3(it->first,curr);
+    	}
+    	return curr;
+    }
+     
+    ll parent[N];  //parent of root of centroid tree is -1
+    //divide and conquer 
+    //first find centroid of tree,remove it,then do it for its subtrees(forests)
+    //we need to keep only track of a node's parent(however we could fill the adj list)
+    void decompose(ll curr,ll par)
+    {
+    	nn=0;
+    	//as once we remove the centroid,it doesnt have centroid in its adj list
+    	dfs2(curr,-1);
+    	ll centroid=dfs3(curr,-1);
+    	parent[centroid]=par;
+    	for(auto it=adj[centroid].begin();it!=adj[centroid].end();it++)
+    	{
+    		//erase the centroid from all its neighbour's adj list
+    		adj[it->first].erase(centroid);
+    		//do the same for all its subtree
+    		//so for the second centroid it will have this centroid as parent
+    		decompose(it->first,centroid);
+    		
+    	}
+    	
+    	adj[centroid].clear();
+    }
+     
+    //-----------------Handling the queries---------------------
+    ll dist[N]; //This denotes the minimum distance of some red node to it
+    void update(ll u)
+    {
+    	ll x=u;
+    	ll cnt1=0;
+    	while(1)
+    	{
+    	   
+    		dist[x]=min(dist[x],findDist(x,u));
+    		x=parent[x];
+    		if(x==-1) //we have updated root
+    		break;
+    	}
+    }
+     
+    ll query(ll u)
+    {
+    	ll res=INF;
+    	ll x=u,cnt1=0;
+    	while(1)
+    	{
+    	   
+    	  //  cout<<x<<endl;
+    		res=min(res,dist[x]+findDist(x,u));
+    		x=parent[x];
+    		if(x==-1)
+    		break;
+    	}
+    	return res;
+    }
+     
+     
+     
+    int main() {
+    	
+    	ios_base::sync_with_stdio(false);
+    	cin.tie(NULL);
+    	// your code here
+    	ll m,a,b;
+    	cin>>n>>m;
+    	ll i,j;
+    	fll(i,0,n+2)
+    	{
+    	    dist[i]=INF;
+    	    fll(j,0,23)
+    	    dpTable[i][j]=-1;
+    	}
+    	fll(i,1,n)
+    	{
+    		cin>>a>>b;
+    		a--;
+    		b--;
+    		adj[a][b];
+    		adj[b][a];
+    	}
+    	preprocess();
+    	decompose(0,-1);
+    	update(0);
+    	while(m--)
+    	{
+    		cin>>a;
+    		if(a==1)
+    		{
+    			cin>>b;
+    			b--;
+    			update(b);
+    		}
+    		else
+    		{
+    			cin>>b;
+    			b--;
+    			cout<<query(b)<<'\n';
+    		}
+    	}
+    	
+     
+    	return 0;
+    }
